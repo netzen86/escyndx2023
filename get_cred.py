@@ -1,8 +1,8 @@
 """Module providingFunction printing python version."""
 from csv import DictReader
-from netmiko import ConnectHandler as CH
 from concurrent.futures import ThreadPoolExecutor as TE
 from itertools import repeat
+from netmiko import ConnectHandler as CH
 
 def get_cred(filename):
     """get credential for connet to device"""
@@ -24,8 +24,9 @@ def send_command(device, show=None, conf=None):
             result = ssh.send_command(show)
             return f"{prompt}{cmd}\n{result}\n"
         if conf:
-            result = ssh.send_command(conf)
+            result = ssh.send_config_set(conf)
             return f"{result}\n"
+    # return result
 
 
 def run_connecting(device, filename, *, show=None, conf=None, limit=3):
@@ -39,6 +40,6 @@ def run_connecting(device, filename, *, show=None, conf=None, limit=3):
 
 
 if __name__ == "__main__":
-    conf = ['router ospf 55', 'network 0.0.0.0 255.255.255.255 area 0']
-    show = "show ip int b"
-    run_connecting(get_cred("dev.svc"), "res_command.txt", conf=conf)
+    confs = ['router ospf 55', 'network 0.0.0.0 255.255.255.255 area 0']
+    shows = "show ip int b"
+    run_connecting(get_cred("device.csv"), "res_command.txt", show=shows)
