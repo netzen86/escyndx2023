@@ -1,11 +1,11 @@
-"""Module providingFunction printing python version."""
+"""Send commnad to device"""
 from csv import DictReader
 from concurrent.futures import ThreadPoolExecutor as TE
 from itertools import repeat
 from netmiko import ConnectHandler as CH
 
 def get_cred(filename):
-    """get credential for connet to device"""
+    """get credential for connect to device"""
     result = []
     with open(filename, encoding="utf-8") as csvfile:
         reader = DictReader(csvfile)
@@ -16,21 +16,23 @@ def get_cred(filename):
 
 def send_command(device, show=None, conf=None):
     """send command to device"""
+    cmd_output = []
+    result = ''
     with CH(**device) as ssh:
         ssh.enable()
         prompt = ssh.find_prompt()
         if show:
-            cmd = show
-            result = ssh.send_command(show)
-            return f"{prompt}{cmd}\n{result}\n"
+            for cmd in show:
+                out = ssh.send_command(cmd)
+                cmd_output.append(f"{prompt}{cmd}\n{out}\n")
+            result = "\n".join(cmd_output)
         if conf:
-            result = ssh.send_config_set(conf)
-            return f"{result}\n"
-    # return result
+            result = f'{ssh.send_config_set(conf)}\n'
+    return result
 
 
-def run_connecting(device, filename, *, show=None, conf=None, limit=3):
-    """run multipul command to device"""
+def run_connecting(device, filename, show=None, conf=None, limit=3):
+    """run send_command() on multipul device"""
     if show and conf:
         raise ValueError("Choice one arg")
     with TE(max_workers=limit) as runner:
@@ -40,6 +42,7 @@ def run_connecting(device, filename, *, show=None, conf=None, limit=3):
 
 
 if __name__ == "__main__":
-    confs = ['router ospf 55', 'network 0.0.0.0 255.255.255.255 area 0']
-    shows = "show ip int b"
+    confs = ['snmp-server community testcom RO', 'int g0/2', 'des potr2']
+    shows = ['show int des', 'show version', 'show inv']
     run_connecting(get_cred("device.csv"), "res_command.txt", show=shows)
+    # run_connecting(get_cred("device.csv"), "res_command.txt", conf=confs)
