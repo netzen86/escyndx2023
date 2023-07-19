@@ -1,48 +1,61 @@
 """Send commnad to device"""
 from csv import DictReader
-from concurrent.futures import ThreadPoolExecutor as TE
+from concurrent.futures import ThreadPoolExecutor as te
 from itertools import repeat
-from netmiko import ConnectHandler as CH
+from netmiko import ConnectHandler as ch
+
 
 def get_cred(filename):
     """get credential for connect to device"""
     result = []
-    with open(filename, 'r', encoding='utf-8') as csvfile:
+    with open(filename, "r", encoding="utf-8") as csvfile:
         reader = DictReader(csvfile)
         for row in reader:
             result.append(dict(row))
     return result
 
 
-def send_command(device, show=None, conf=None):
+def send_commands(device, show=None, conf=None):
     """send command to device"""
+    result = ""
     cmd_output = []
-    result = ''
-    with CH(**device) as ssh:
-        ssh.enable()
-        prompt = ssh.find_prompt()
+    with ch(**device) as connection:
+        connection.enable()
         if show:
+            prompt = connection.find_prompt()
             for cmd in show:
-                out = ssh.send_command(cmd)
-                cmd_output.append(f'{prompt}{cmd}\n{out}\n')
-            result = '\n'.join(cmd_output)
+                if isinstance(cmd, list):
+                    out = connection.send_multiline(cmd)
+                else:
+                    out = connection.send_command(cmd)
+                cmd_output.append(f"{prompt}{cmd}\n{out}\n")
+            result = "\n".join(cmd_output)
         if conf:
-            result = f'{ssh.send_config_set(conf)}\n'
+            result = f"{connection.send_config_set(conf)}"
     return result
 
 
-def run_connecting(device, filename, show=None, conf=None, limit=3):
+def run_multi_connect(device, filename, show=None, conf=None, limit=3):
     """run send_command() on multipul device"""
     if show and conf:
-        raise ValueError('Choice one arg')
-    with TE(max_workers=limit) as runner:
-        result = runner.map(send_command, device, repeat(show), repeat(conf))
-    with open(filename, 'w', encoding='utf-8') as txt_file:
-        txt_file.writelines(result)
+        raise ValueError("shoice least one arg")
+    with te(max_workers=limit) as runner:
+        result = runner.map(send_commands, device, repeat(show), repeat(conf))
+    with open(filename, "w", encoding="utf-8") as report:
+        report.writelines(result)
 
 
-if __name__ == '__main__':
-    confs = ['snmp-server community testcom RO', 'int g0/2', 'des potr2']
-    shows = ['show int des', 'show version', 'show inv']
-    run_connecting(get_cred('device.csv'), 'res_command.txt', show=shows)
-    # run_connecting(get_cred('device.csv'), 'res_command.txt', conf=confs)
+if __name__ == "__main__":
+    shows = [
+        "show ver",
+        "show ip int b",
+        "show inv",
+        [
+            ["copy scp://netzen:nihilant@10.0.0.58/test.log flash://test.log", r"]?"],
+            ["\n", ""],
+        ],
+        "show snmp mib ifmib ifindex gi 0/1",
+    ]
+    confs = ["hostname RouterCiscoRev2", "int gi0/2", "des test script"]
+    run_multi_connect(get_cred("device.csv"), "report.txt", show=shows)
+    # run_multi_connect(get_cred('device.csv'), 'report.txt', conf=confs)
